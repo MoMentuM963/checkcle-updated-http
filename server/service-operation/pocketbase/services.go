@@ -1,4 +1,3 @@
-
 package pocketbase
 
 import (
@@ -7,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"io"
+	"log"
 )
 
 func (c *PocketBaseClient) GetServices() ([]Service, error) {
@@ -36,13 +37,15 @@ func (c *PocketBaseClient) GetServices() ([]Service, error) {
 }
 
 func (c *PocketBaseClient) GetService(serviceID string) (*Service, error) {
-	req, err := http.NewRequest("GET", 
-		fmt.Sprintf("%s/api/collections/services/records/%s", c.baseURL, serviceID), nil)
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/api/collections/services/records/%s", c.baseURL, serviceID),
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	// No authentication header needed for public access
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -50,12 +53,22 @@ func (c *PocketBaseClient) GetService(serviceID string) (*Service, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch service %s, status: %d", serviceID, resp.StatusCode)
+		return nil, fmt.Errorf(
+			"failed to fetch service %s, status: %d",
+			serviceID,
+			resp.StatusCode,
+		)
+	}
+
+	// Read raw response for debugging
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
 	}
 
 	var service Service
-	if err := json.NewDecoder(resp.Body).Decode(&service); err != nil {
-		return nil, err
+	if err := json.Unmarshal(bodyBytes, &service); err != nil {
+		return nil, fmt.Errorf("failed to decode service: %v", err)
 	}
 
 	return &service, nil

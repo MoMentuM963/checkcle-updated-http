@@ -155,7 +155,10 @@ type Service struct {
 	URL                string    `json:"url"`
 	Alerts             string    `json:"alerts"`
 	StatusCodes        string    `json:"status_codes"`
-	Keyword            string    `json:"keyword"`
+	Keyword            string    `json:"keyword"`	
+	Method             string    `json:"method"`
+	Headers            string    `json:"headers"`
+	Body               string    `json:"body"`
 	Created            string    `json:"created"`
 	Updated            string    `json:"updated"`
 }

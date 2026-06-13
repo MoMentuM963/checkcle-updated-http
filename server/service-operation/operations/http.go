@@ -1,13 +1,15 @@
-
 package operations
 
+
 import (
+	"log"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
-
+	"encoding/json"
+	
 	"service-operation/types"
 )
 
@@ -25,7 +27,7 @@ func NewHTTPOperation(timeout time.Duration) *HTTPOperation {
 	}
 }
 
-func (h *HTTPOperation) Execute(url, method string) (*types.OperationResult, error) {
+func (h *HTTPOperation) Execute(url, method, headers, body string) (*types.OperationResult, error) {
 	result := &types.OperationResult{
 		Type:       types.OperationHTTP,
 		StartTime:  time.Now(),
@@ -45,7 +47,11 @@ func (h *HTTPOperation) Execute(url, method string) (*types.OperationResult, err
 
 	start := time.Now()
 
-	req, err := http.NewRequest(method, url, nil)
+	var reqBody io.Reader
+	if method == "POST" {
+		reqBody = strings.NewReader(body)
+	}
+	req, err := http.NewRequest(method, url, reqBody)
 	if err != nil {
 		result.Error = fmt.Sprintf("Failed to create request: %v", err)
 		result.Success = false
@@ -55,9 +61,20 @@ func (h *HTTPOperation) Execute(url, method string) (*types.OperationResult, err
 
 	// Set a user agent
 	req.Header.Set("User-Agent", "ServiceOperation/1.0")
+	// Add custom headers if provided (for POST requests)
+	if headers != "" {
+		var headerMap map[string]string
+		if err := json.Unmarshal([]byte(headers), &headerMap); err == nil {
+			for k, v := range headerMap {
+				req.Header.Set(k, v)
+			}
+			log.Printf("🔑 Headers being sent for %s: %v", url, headerMap) // ← add this
 
-	resp, err := h.client.Do(req)
+		}
+	}
 	
+	resp, err := h.client.Do(req)
+
 	result.ResponseTime = time.Since(start)
 	result.EndTime = time.Now()
 
@@ -95,12 +112,12 @@ func (h *HTTPOperation) Execute(url, method string) (*types.OperationResult, err
 	}
 
 	// Read response body for keyword checking and additional details
-	body, err := io.ReadAll(resp.Body)
-	if err == nil && len(body) > 0 {
-		result.ResponseBody = string(body)
+	respBody, err := io.ReadAll(resp.Body)
+	if err == nil && len(respBody) > 0 {
+		result.ResponseBody = string(respBody)
 		// Update content length if not set by server
-		if result.ContentLength <= 0 {
-			result.ContentLength = int64(len(body))
+		if result.ContentLength <= 0 && len(respBody) > 0 {
+			result.ContentLength = int64(len(respBody))
 		}
 	}
 
@@ -112,9 +129,9 @@ func (h *HTTPOperation) Execute(url, method string) (*types.OperationResult, err
 		case resp.StatusCode >= 400:
 			result.Error = fmt.Sprintf("❌ Client Error (HTTP %d): %s - The request was invalid or unauthorized", resp.StatusCode, resp.Status)
 		case resp.StatusCode >= 300:
-			result.Error = fmt.Sprintf("↩️ Redirect (HTTP %d): %s - Resource has moved", resp.StatusCode, resp.Status)
+			result.Error = fmt.Sprintf("↩️Redirect (HTTP %d): %s - Resource has moved", resp.StatusCode, resp.Status)
 		default:
-			result.Error = fmt.Sprintf("⚠️ Unexpected Status (HTTP %d): %s", resp.StatusCode, resp.Status)
+			result.Error = fmt.Sprintf(" Unexpected Status (HTTP %d): %s", resp.StatusCode, resp.Status)
 		}
 	} else {
 		// Success message with emoji

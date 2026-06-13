@@ -1,4 +1,3 @@
-
 package monitoring
 
 import (
@@ -70,7 +69,11 @@ func (ms *MonitoringService) performCheck(service pocketbase.Service) {
 		if url == "" {
 			url = latestService.Host
 		}
-		result, err = httpOp.Execute(url, "GET")
+		method := latestService.Method
+		if method == "" {
+			method = "GET"
+		}
+		result, err = httpOp.Execute(url, method, latestService.Headers, latestService.Body)
 		
 	default:
 		log.Printf("Unknown service type: %s for service %s", latestService.ServiceType, latestService.Name)

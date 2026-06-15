@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 	"io"
-	"log"
 )
 
 func (c *PocketBaseClient) GetServices() ([]Service, error) {

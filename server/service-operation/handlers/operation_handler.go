@@ -77,7 +77,7 @@ func (h *OperationHandler) HandleOperation(w http.ResponseWriter, r *http.Reques
 		if method == "" {
 			method = "GET"
 		}
-		result, err = httpOp.Execute(url, method)
+		result, err = httpOp.Execute(url, method, "", "")
 		
 	case types.OperationSSL:
 		sslOp := operations.NewSSLOperation(timeout)
